@@ -34,6 +34,11 @@ public:
 	UFUNCTION(BlueprintPure)
 	bool IsDead() const;
 
+	UFUNCTION(BlueprintPure)
+	float GetHealthPercent() const;
+	
+	void Shoot();
+
 private:
 	UPROPERTY(EditAnywhere)
 	float lookSensitivity = 80;
@@ -63,5 +68,4 @@ private:
 	void LookUpRate(float axisValue);
 	void LookRightRate(float axisValue);
 	void CameraZoom(float axisValue);
-	void Shoot();
 };

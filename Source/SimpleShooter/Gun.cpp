@@ -26,32 +26,21 @@ AGun::AGun()
 void AGun::PullTrigger() 
 {
 	UGameplayStatics::SpawnEmitterAttached(MuzzleFlash, Mesh, TEXT("MuzzleFlashSocket"));
-
-	APawn* OwnerPawn = Cast<APawn>(GetOwner());
-	if(!OwnerPawn) return;
-
-	AController* OwnerController = OwnerPawn->GetController();
-	if(!OwnerController) return;
-	
-	FVector Location;
-	FRotator Rotation;
-
-	OwnerController->GetPlayerViewPoint(OUT Location, OUT Rotation);
-
-	FVector End = Location + Rotation.Vector() * MaxRange;
+	UGameplayStatics::SpawnSoundAttached(MuzzleSound, Mesh, TEXT("MuzzleFlashSocket"));
 
 	FHitResult Hit;
+	FVector ShotDirection;
 
-	bool bSuccess = GetWorld()->LineTraceSingleByChannel(OUT Hit, Location, End, ECollisionChannel::ECC_GameTraceChannel1); //ECC_GameTraceChannel1 = Bullet channel
+	bool bSuccess = GunTrace(Hit, ShotDirection);
 
 	if(bSuccess) {
-			FVector ShotDirection = -Rotation.Vector(); //Where the shot is coming from
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), Impact, Hit.Location, ShotDirection.Rotation());
+			UGameplayStatics::PlaySoundAtLocation(GetWorld(), ImpactSound, Hit.Location, ShotDirection.Rotation());
 			
 			AActor* ActorHit = Hit.GetActor();
 			if(ActorHit != nullptr) {
 				FPointDamageEvent DamageEvent(Damage, Hit, ShotDirection, nullptr);
-				ActorHit->TakeDamage(Damage, DamageEvent, OwnerController, this);
+				ActorHit->TakeDamage(Damage, DamageEvent, GetOwnerController(), this);
 			}
 	}
 }
@@ -68,5 +57,35 @@ void AGun::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+bool AGun::GunTrace(FHitResult& Hit, FVector& ShotDirection) 
+{	
+	AController* OwnerController = GetOwnerController();
+	if(!OwnerController) return false;
+
+	FVector Location;
+	FRotator Rotation;
+
+	OwnerController->GetPlayerViewPoint(OUT Location, OUT Rotation);
+
+	ShotDirection = -Rotation.Vector();
+
+	FVector End = Location + Rotation.Vector() * MaxRange;
+
+	FCollisionQueryParams Params;
+
+	Params.AddIgnoredActor(this);
+	Params.AddIgnoredActor(GetOwner());
+
+	return GetWorld()->LineTraceSingleByChannel(OUT Hit, Location, End, ECollisionChannel::ECC_GameTraceChannel1, Params); //ECC_GameTraceChannel1 = Bullet channel
+}
+
+AController* AGun::GetOwnerController() const
+{
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if(!OwnerPawn) return nullptr;
+
+	return OwnerPawn->GetController();
 }
 
